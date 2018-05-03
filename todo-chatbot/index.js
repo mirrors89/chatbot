@@ -1,11 +1,10 @@
 const TelegramBot = require('telegram-node-bot');
+
 const TodoController = require('./controller/TodoController');
 const OtherwiseController = require('./controller/OtherwiseController');
-const fs = require('fs');
+const {BotFactory, BotType} = require('./factories/BotFactory');
 
-const token = fs.readFileSync('./botToken.txt', 'utf-8');
-
-const tg = new TelegramBot.Telegram(token);
+const tg = BotFactory.getBot(BotType.TELEGRAM);
 
 const TextCommand = TelegramBot.TextCommand;
 

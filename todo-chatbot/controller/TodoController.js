@@ -1,46 +1,50 @@
 const TelegramBot = require('telegram-node-bot');
+const CommandStr = require('../utils/CommandStr');
+const CloudStorage = require('../db/CloudStorage');
+
 
 class TodoController extends TelegramBot.TelegramBaseController {
 
     getHandler ($) {
-        $.getUserSession('todos').then(todos => {
+        CloudStorage.getTodos()
+            .then(todos => {
             $.sendMessage(this.paserTodos(todos), {parse_mode: 'Markdown'});
         });
     }
 
     addHandler ($) {
-        const todo = $.message.text.split(' ').splice(1).join(' ');
+        const todo = CommandStr.getCommandArgs($.message.text);
         if(!todo) return $.sendMessage('todo를 입력해 주세요.');
 
-        $.getUserSession('todos')
-            .then(todos=> {
-               if(!Array.isArray(todos)) $.setUserSession('todos', [todo]);
-               else $.setUserSession('todos', todos.concat([todo]));
+        const addTodo = {
+            desc: todo || '',
+            due_date: new Date(),
+            is_done: false
+        };
 
-               $.sendMessage(`${todo}가 할 일에 추가 됐습니다.`);
+        CloudStorage.insertTodo(addTodo)
+            .then(result => {
+               $.sendMessage(`${result.desc}가 할 일에 추가 됐습니다.`);
             });
     }
 
     doneHandler ($) {
-        const index = parseInt($.message.text.split(' ').splice(1)[0]);
-        if(isNaN(index)) return $.sendMessage('번호를 입력해 주세요.');
+        let id = CommandStr.getCommandArgs($.message.text);
+        if (!id) return $.sendMessage('없는 번호 입니다.');
 
-        $.getUserSession('todos')
-            .then(todos => {
-                const todo = todos[index];
+        CloudStorage.updateTodo(id, {is_done: true})
+            .then(_ => {
+                $.sendMessage(`완료했습니다.`);
+            });
 
-                if(!todo) return $.sendMessage('없는 번호 입니다.');
-                todos.splice(index, 1);
-
-                $.setUserSession('todos', todos);
-                $.sendMessage(`${todo}를 완료했습니다.`);
-            })
     }
 
     paserTodos (todos) {
+        if(!todos.length) return '할일이 없습니다.';
+
         let result = `* 할일 목록 * \n\n`;
         todos.forEach((todo, i) => {
-            result += `*${i + 1}* - ${todo}\n`
+            result += `*${todo.id}* - ${todo.desc}\n`
         });
         return result;
     }
